@@ -78,12 +78,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .co{background:var(--card);border:1px solid var(--gold);border-radius:14px;padding:10px 12px;margin-bottom:8px}
 .route{display:flex;gap:8px;margin-top:6px}.route span{flex:1;text-align:center;background:#0a0f0c;border:1px solid var(--line);border-radius:10px;padding:5px 0;font-family:"Barlow Condensed",sans-serif;font-size:28px;font-weight:700}
 .out{color:var(--gold);font-size:13px;margin-top:2px}
+.lbx{margin-top:26px}.lbh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.lb{border-spacing:0}.lb th{max-width:none;padding:6px 4px;text-align:center;font-size:13px}
+.lb td{padding:10px 4px;text-align:center;border-top:1px solid var(--line);font-family:"Barlow Condensed",sans-serif;font-size:24px;font-weight:700}
+.lb td.rk{color:var(--mut);width:26px;font-size:18px}.lb td.pn{text-align:left;font-family:system-ui,sans-serif;font-size:16px;font-weight:600;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb td.s{color:var(--gold)}
 </style></head>
 <body><div id="app"></div><div id="t"></div>
 <script>
 const $=s=>document.querySelector(s),app=$('#app');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let S={screen:'home',game:null,names:['Player 1','Player 2'],start:501,dbl:true,g:null,inp:'',mode:'darts',mult:1},H=[];
+let S={screen:'home',game:null,names:['Player 1','Player 2'],start:501,dbl:true,g:null,inp:'',mode:'darts',mult:1,sort:'legs'},H=[];
 const TITLES={x01:()=>S.start,killer:()=>'Killer',cricket:()=>'Cricket',clock:()=>'Around the clock'};
 function toast(m){const t=$('#t');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1400)}
 function snap(){H.push(JSON.stringify(S.g));if(H.length>300)H.shift()}
@@ -98,7 +103,7 @@ function start(){
   const n=S.names=S.names.map((x,i)=>x.trim()||'Player '+(i+1)),k=n.length,z=v=>n.map(()=>v);
   if(S.game!='x01'&&S.game!='clock'&&k<2)return toast('Add at least 2 players');
   H=[];S.inp='';S.mult=1;
-  if(S.game=='x01')S.g={cur:0,leg:0,win:null,sc:z(S.start),legs:z(0),darts:z(0),pts:z(0),last:z(null),td:[]};
+  if(S.game=='x01')S.g={cur:0,leg:0,win:null,sc:z(S.start),legs:z(0),darts:z(0),pts:z(0),last:z(null),td:[],miss:z(0),mr:z(0)};
   if(S.game=='killer'){const pool=[...Array(20)].map((_,i)=>i+1).sort(()=>Math.random()-.5);S.g={cur:0,win:null,num:pool.slice(0,k),lives:z(3),killer:z(false)}}
   if(S.game=='cricket')S.g={cur:0,win:null,marks:n.map(()=>[0,0,0,0,0,0,0]),pts:z(0)};
   if(S.game=='clock')S.g={cur:0,win:null,pos:z(1)};
@@ -131,11 +136,11 @@ function thr(n){
   const g=S.g,i=g.cur;let m=S.mult;
   if(n==0)m=1;if(n==25&&m==3)return toast('No treble bull');
   const v=n*m,l=n==0?'Miss':n==25?(m==2?'Bull':'25'):(m==2?'D':m==3?'T':'')+n;
-  snap();g.td.push({l,v,m});S.mult=1;
+  snap();g.td.push({l,v,m});if(n==0)g.miss[i]++;S.mult=1;
   const sum=g.td.reduce((a,d)=>a+d.v,0),rem=g.sc[i]-sum;
   const bust=rem<0||(S.dbl&&(rem==1||(rem==0&&m!=2)));
   if(bust){g.darts[i]+=3;g.last[i]='Bust';g.td=[];toast('Bust! Score stays '+g.sc[i]);return endT()}
-  if(rem==0){g.darts[i]+=g.td.length;g.pts[i]+=sum;g.last[i]=sum;g.legs[i]++;g.win=i;g.td=[];return render()}
+  if(rem==0){g.darts[i]+=g.td.length;g.pts[i]+=sum;g.last[i]=sum;g.legs[i]++;g.win=i;recLeg();g.td=[];return render()}
   if(g.td.length==3){g.sc[i]=rem;g.pts[i]+=sum;g.darts[i]+=3;g.last[i]=sum;g.td=[];endT()}else render()
 }
 function key(k){if(k=='<')S.inp=S.inp.slice(0,-1);else if(S.inp.length<3)S.inp+=k;render()}
@@ -145,7 +150,7 @@ function sub(){
   snap();const i=g.cur,n=g.sc[i]-v;let bust=n<0||(S.dbl&&n==1);
   if(!bust&&n==0&&S.dbl&&!confirm('Finished on a double?'))bust=true;
   g.darts[i]+=3;
-  if(bust){g.last[i]='Bust'}else{g.sc[i]=n;g.pts[i]+=v;g.last[i]=v;if(n==0){g.legs[i]++;g.win=i;S.inp='';return render()}}
+  if(bust){g.last[i]='Bust'}else{g.sc[i]=n;g.pts[i]+=v;g.last[i]=v;if(n==0){g.legs[i]++;g.win=i;recLeg();S.inp='';return render()}}
   g.cur=(i+1)%g.sc.length;S.inp='';render()
 }
 function nextLeg(){const g=S.g,n=g.sc.length;g.leg++;g.cur=g.leg%n;g.sc=g.sc.map(()=>S.start);g.last=g.last.map(()=>null);g.td=[];g.win=null;H=[];render()}
@@ -213,6 +218,29 @@ function clock(){
   <p class=meta>Work from 1 to 20 then the bull. Doubles and triples skip ahead.</p>`
 }
 
+/* ---------- Leaderboard ---------- */
+const LBK='darts-lb-v1';
+function lbGet(){try{return JSON.parse(localStorage.getItem(LBK))||{}}catch(e){return {}}}
+function lbSet(o){try{localStorage.setItem(LBK,JSON.stringify(o))}catch(e){}}
+function recLeg(){
+  const g=S.g,lb=lbGet();
+  S.names.forEach((nm,p)=>{const k=nm.trim().toLowerCase(),r=lb[k]||(lb[k]={name:nm,legs:0,avg:0,miss:0});
+    r.name=nm;if(p==g.win)r.legs++;r.miss+=g.miss[p]-g.mr[p];g.mr[p]=g.miss[p];
+    if(g.darts[p]>=9)r.avg=Math.max(r.avg,g.pts[p]/g.darts[p]*3)});
+  lbSet(lb)}
+function lbSort(k){S.sort=k;render()}
+function lbClear(){if(confirm('Clear the leaderboard on this device?')){try{localStorage.removeItem(LBK)}catch(e){}render()}}
+function lbView(){
+  const k=S.sort,rows=Object.values(lbGet()).sort((a,b)=>b[k]-a[k]||b.legs-a.legs||b.avg-a.avg).slice(0,10);
+  if(!rows.length)return `<div class=lbx><h2>Leaderboard</h2><p class=meta>Finish a 501 or 301 leg and your stats show up here.</p></div>`;
+  const c=x=>k==x?'s':'';
+  return `<div class=lbx><div class=lbh><h2>Leaderboard</h2><button class=ghost onclick="lbClear()">Reset</button></div>
+  <div class=chips style="margin:0 0 6px">${[['legs','Legs won'],['avg','Best average'],['miss','Most misses']].map(([x,t])=>`<button class="chip ${k==x?'on':''}" onclick="lbSort('${x}')">${t}</button>`).join('')}</div>
+  <table class=lb><tr><th></th><th style="text-align:left">Player</th><th>Legs</th><th>Best avg</th><th>Misses</th></tr>
+  ${rows.map((r,i)=>`<tr><td class=rk>${i+1}</td><td class=pn>${esc(r.name)}</td><td class="${c('legs')}">${r.legs}</td><td class="${c('avg')}">${r.avg?r.avg.toFixed(1):'–'}</td><td class="${c('miss')}">${r.miss}</td></tr>`).join('')}</table>
+  <p class=meta>Counted from finished 501 and 301 legs on this device. Misses come from dart-by-dart entry. Best average needs at least 9 darts.</p></div>`
+}
+
 /* ---------- Screens ---------- */
 function home(){
   return `<h1>Dart counter</h1><p class=sub>Pick a game to start scoring.</p>
@@ -221,7 +249,7 @@ function home(){
   <button class="tile red" onclick="pick('x01',301)"><span class=num>301</span><small>Shorter race to zero</small></button>
   <button class="tile grn" onclick="pick('killer')"><span class=num>Killer</span><small>Become a killer, take lives</small></button>
   <button class="tile grn" onclick="pick('cricket')"><span class=num>Cricket</span><small>Close 20 to 15 and the bull</small></button>
-  <button class=tile onclick="pick('clock')" style="grid-column:span 2"><span class=num>Around the clock</span><small>Hit 1 to 20, then the bull</small></button></div>`
+  <button class=tile onclick="pick('clock')" style="grid-column:span 2"><span class=num>Around the clock</span><small>Hit 1 to 20, then the bull</small></button></div>${lbView()}`
 }
 function setup(){
   const x=S.game=='x01';
